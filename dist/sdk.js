@@ -1709,7 +1709,8 @@
         if (app.config.extension && app.config.extension[this.optionKey]) {
           config = Base.util._.defaults({}, app.config.extension[this.optionKey]);
         }
-        return rp = new ResponsiveImages(config);
+        rp = new ResponsiveImages(config);
+        return Backbone.trigger('responsiveimages:initialized');
       };
     },
     afterAppInitialized: function(app) {

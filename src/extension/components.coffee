@@ -8,6 +8,9 @@
 
     class Component
 
+        # object to store initialized components
+        @initializedComponents : {}
+
         ###*
          * [startAll description]
          * @author Francisco Ramini <francisco.ramini at globant.com>
@@ -23,6 +26,8 @@
 
             # TODO: Proximo paso inicializar las componentes
             Component.instantiate(components, app)
+
+            return Component.initializedComponents
 
         @parseList: (selector, namespace) ->
             # array to hold parsed components
@@ -100,23 +105,36 @@
             return options
 
         @instantiate: (components, app) ->
-            # TODO: access this utils function through Base
-            _.each(components, (m, i) ->
+             
+            if components.length > 0
+
+                m = components.shift()
+
                 # Check if the modules are defined using the modules namespace
                 # TODO: Provide an alternate way to define which is gonna be
                 # this global object that is gonna hold the module definition
                 if not _.isEmpty(NGL.modules) and NGL.modules[m.name] and m.options
-                    mod = NGL.modules[m.name]
+                    mod = _.clone NGL.modules[m.name]
 
                     # create a new sandbox for this module
                     sb = app.createSandbox(m.name)
+
+                    # generates an unique guid for the module
+                    m.options.guid = _.uniqueId(m.name + "_")
 
                     # inject the sandbox and the options in the module proto
                     _.extend mod, sandbox : sb, options: m.options
 
                     # init the module
                     mod.initialize()
-            )
+
+                    # store a reference of the generated guid on the el
+                    $(mod.options.el).data '__guid__', m.options.guid
+
+                    # saves a reference of the initialized module
+                    Component.initializedComponents[ m.options.guid ] = mod
+
+                Component.instantiate(components, app)
 
 
     ##
@@ -128,9 +146,15 @@
 
         Base.log.info "[ext] Component extension initialized"
 
+        initializedComponents = {}
+
         app.sandbox.startComponents = (list, app) ->
 
-            Component.startAll(list, app)
+            initializedComponents = Component.startAll(list, app)
+
+        app.sandbox.getInitializedComponents = () ->
+
+            return initializedComponents
 
 
     # this method will be called once all the extensions have been loaded
