@@ -1381,6 +1381,8 @@
   Component = (function() {
     function Component() {}
 
+    Component.initializedComponents = {};
+
 
     /**
      * [startAll description]
@@ -1397,7 +1399,8 @@
       components = Component.parseList(selector, app.config.namespace);
       Base.log.info("Parsed components");
       Base.log.debug(components);
-      return Component.instantiate(components, app);
+      Component.instantiate(components, app);
+      return Component.initializedComponents;
     };
 
     Component.parseList = function(selector, namespace) {
@@ -1458,18 +1461,23 @@
     };
 
     Component.instantiate = function(components, app) {
-      return _.each(components, function(m, i) {
-        var mod, sb;
+      var m, mod, sb;
+      if (components.length > 0) {
+        m = components.shift();
         if (!_.isEmpty(NGL.modules) && NGL.modules[m.name] && m.options) {
-          mod = NGL.modules[m.name];
+          mod = _.clone(NGL.modules[m.name]);
           sb = app.createSandbox(m.name);
+          m.options.guid = _.uniqueId(m.name + "_");
           _.extend(mod, {
             sandbox: sb,
             options: m.options
           });
-          return mod.initialize();
+          mod.initialize();
+          $(mod.options.el).data('__guid__', m.options.guid);
+          Component.initializedComponents[m.options.guid] = mod;
         }
-      });
+        return Component.instantiate(components, app);
+      }
     };
 
     return Component;
@@ -1477,9 +1485,14 @@
   })();
   return {
     initialize: function(app) {
+      var initializedComponents;
       Base.log.info("[ext] Component extension initialized");
-      return app.sandbox.startComponents = function(list, app) {
-        return Component.startAll(list, app);
+      initializedComponents = {};
+      app.sandbox.startComponents = function(list, app) {
+        return initializedComponents = Component.startAll(list, app);
+      };
+      return app.sandbox.getInitializedComponents = function() {
+        return initializedComponents;
       };
     },
     afterAppStarted: function(app) {
